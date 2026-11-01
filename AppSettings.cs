@@ -26,7 +26,7 @@ namespace EksaCompanion
         {
             StartMinimized = true;
             AutoStart = false;
-            MicEncEnabled = false; // Default OFF per user requirement
+            MicEncEnabled = true; // Default ON (runs on USB dongle DSP, 0% battery impact)
             SurroundEnabled = false;
             SelectedPreset = "ZXG"; // User's custom preset by default!
             EqBands = new sbyte[10] { 2, 3, 2, -2, 0, 1, 0, 2, -3, 3 };
@@ -60,7 +60,7 @@ namespace EksaCompanion
                     string json = File.ReadAllText(ConfigPath);
                     settings.StartMinimized = ExtractBool(json, "StartMinimized", true);
                     settings.AutoStart = ExtractBool(json, "AutoStart", false);
-                    settings.MicEncEnabled = ExtractBool(json, "MicEncEnabled", false);
+                    settings.MicEncEnabled = ExtractBool(json, "MicEncEnabled", true);
                     settings.SurroundEnabled = ExtractBool(json, "SurroundEnabled", false);
                     settings.SelectedPreset = ExtractString(json, "SelectedPreset", "ZXG");
                     if (settings.SelectedPreset == "ZXG (Custom)")
