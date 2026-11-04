@@ -81,16 +81,6 @@ namespace EksaCompanion
                         settings.LastActiveTime = DateTime.Now;
 
                     settings.ActiveUsedSeconds = ExtractDouble(json, "ActiveUsedSeconds", 0.0);
-
-                    // Overnight charging detection: if PC was off/sleeping for >= 3.5h, headset was charged overnight!
-                    TimeSpan gap = DateTime.Now - settings.LastActiveTime;
-                    if (gap.TotalHours >= 3.5)
-                    {
-                        settings.LastChargedTime = DateTime.Now;
-                        settings.LastActiveTime = DateTime.Now;
-                        settings.ActiveUsedSeconds = 0.0;
-                        settings.Save();
-                    }
                 }
                 else
                 {

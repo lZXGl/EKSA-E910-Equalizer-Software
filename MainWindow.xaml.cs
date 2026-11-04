@@ -15,9 +15,9 @@ namespace EksaCompanion
 {
     public partial class MainWindow : Window
     {
-        // Battery calibration (Modded 803040PT 1000mAh actual + LEDs removed):
-        // ~96mA draw without LEDs => ~10.4h total capacity (9.6% per hour, ~8h 20m to 20%)
-        private const double BatteryDrainPercentPerHour = 9.6;
+        // Battery calibration (Modded 803040PT + LEDs removed, verified >10h 5m before 20% beep):
+        // ~6.5% per hour => ~12h 18m to 20% (~15h 23m total capacity)
+        private const double BatteryDrainPercentPerHour = 6.5;
         private const double AudioGraceWindowSeconds = 120.0;
 
         private readonly EksaHardware _hardware;

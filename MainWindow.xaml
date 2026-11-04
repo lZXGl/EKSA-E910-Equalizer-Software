@@ -348,7 +348,7 @@
 
                         <!-- Clean Runtime & Battery Status (No Hardware UID or duplicate % clutter) -->
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtRuntimeSub" Text="Active 0h 0m · ~10h 25m left" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="TxtRuntimeSub" Text="Active 0h 0m · ~15h 23m left" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" />
                         </StackPanel>
                     </StackPanel>
 
@@ -356,7 +356,7 @@
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <!-- Calibrated Battery Pill (Modded 803040PT + LED delete, click to reset to 100%) -->
                         <Button x:Name="BtnBatteryReset" Style="{StaticResource LogiChipStyle}" Click="BtnBatteryReset_Click" Margin="0,0,8,0" Padding="10,5"
-                                ToolTip="Estimated Headset Battery (Modded 1000mAh + LED delete: ~10h 25m total / ~8h 20m to 20%). Click to reset to 100% when charged.">
+                                ToolTip="Estimated Headset Battery (Modded + LED delete: ~15h 20m total / ~12h 15m to 20%). Click to reset to 100% when charged.">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <!-- Battery Body Icon -->
                                 <Grid VerticalAlignment="Center" Margin="0,0,6,0">
