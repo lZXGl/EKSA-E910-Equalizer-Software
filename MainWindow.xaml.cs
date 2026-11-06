@@ -751,7 +751,9 @@ namespace EksaCompanion
         public void ExitApplication()
         {
             _isRealExit = true;
+            _settings.LastChargedTime = DateTime.Now;
             _settings.LastActiveTime = DateTime.Now;
+            _settings.ActiveUsedSeconds = 0.0;
             _settings.Save();
             if (_notifyIcon != null)
             {

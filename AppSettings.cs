@@ -66,21 +66,11 @@ namespace EksaCompanion
                     if (settings.SelectedPreset == "ZXG (Custom)")
                         settings.SelectedPreset = "ZXG";
                     settings.EqBands = ExtractBands(json);
-                    string lastCharged = ExtractString(json, "LastChargedTime", "");
-                    DateTime lct;
-                    if (!string.IsNullOrEmpty(lastCharged) && DateTime.TryParse(lastCharged, out lct))
-                        settings.LastChargedTime = lct;
-                    else
-                        settings.LastChargedTime = DateTime.Now;
-
-                    string lastActive = ExtractString(json, "LastActiveTime", "");
-                    DateTime lat;
-                    if (!string.IsNullOrEmpty(lastActive) && DateTime.TryParse(lastActive, out lat))
-                        settings.LastActiveTime = lat;
-                    else
-                        settings.LastActiveTime = DateTime.Now;
-
-                    settings.ActiveUsedSeconds = ExtractDouble(json, "ActiveUsedSeconds", 0.0);
+                    // Reset battery to 100% (0h 0m active) on every application start / PC boot
+                    settings.LastChargedTime = DateTime.Now;
+                    settings.LastActiveTime = DateTime.Now;
+                    settings.ActiveUsedSeconds = 0.0;
+                    settings.Save();
                 }
                 else
                 {
