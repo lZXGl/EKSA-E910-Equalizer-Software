@@ -202,40 +202,39 @@
             </Setter>
         </Style>
 
-        <!-- Refined Preset Chip with Tactile Press Physics (scale 0.97) -->
+        <!-- Refined Preset Chip with Continuous Vector Stroke (eliminates WPF Border corner-step & missing-edge artifacts) -->
         <Style x:Key="LogiChipStyle" TargetType="Button">
             <Setter Property="Background" Value="#171422" />
             <Setter Property="Foreground" Value="#94A3B8" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#2E2444" />
+            <Setter Property="BorderThickness" Value="1.6" />
+            <Setter Property="BorderBrush" Value="#3D315B" />
             <Setter Property="Padding" Value="13,6" />
             <Setter Property="Margin" Value="3,0" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="SnapsToDevicePixels" Value="True" />
-            <Setter Property="UseLayoutRounding" Value="True" />
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="ChipBorder"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6"
-                                Padding="{TemplateBinding Padding}"
-                                SnapsToDevicePixels="True"
-                                UseLayoutRounding="True"
-                                RenderTransformOrigin="0.5,0.5">
-                            <Border.RenderTransform>
+                        <Grid RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
                                 <ScaleTransform x:Name="ChipScale" ScaleX="1" ScaleY="1" />
-                            </Border.RenderTransform>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                            </Grid.RenderTransform>
+                            <Rectangle x:Name="ChipBorder"
+                                       Fill="{TemplateBinding Background}"
+                                       Stroke="{TemplateBinding BorderBrush}"
+                                       StrokeThickness="1.6"
+                                       RadiusX="6" RadiusY="6"
+                                       SnapsToDevicePixels="False"
+                                       UseLayoutRounding="False" />
+                            <Border Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ChipBorder" Property="BorderBrush" Value="#6D28D9" />
+                                <Setter TargetName="ChipBorder" Property="Stroke" Value="#C084FC" />
                                 <Setter Property="Foreground" Value="#F1F5F9" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
@@ -344,13 +343,14 @@
 
                     <!-- Left: Verified Hardware Dongle Status -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Dongle Link Pill -->
-                        <Border x:Name="BadgeDongle" Height="30" Background="#221338" BorderBrush="#7C3AED" BorderThickness="1" CornerRadius="6" Padding="12,0" Margin="0,0,14,0" SnapsToDevicePixels="True" UseLayoutRounding="True">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Dongle Link Pill (Continuous 1.6px vector stroke) -->
+                        <Grid Height="30" Margin="0,0,14,0">
+                            <Rectangle x:Name="BadgeDongle" Fill="#25123E" Stroke="#A855F7" StrokeThickness="1.6" RadiusX="6" RadiusY="6" SnapsToDevicePixels="False" UseLayoutRounding="False" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
                                 <Ellipse x:Name="DotDongle" Width="6" Height="6" Fill="{StaticResource AccentPurpleHover}" Margin="0,0,7,0" VerticalAlignment="Center" />
                                 <TextBlock x:Name="TxtDongleStatus" Text="5.8GHz DONGLE ACTIVE" FontSize="10" FontWeight="Bold" Foreground="#E9D5FF" VerticalAlignment="Center" />
                             </StackPanel>
-                        </Border>
+                        </Grid>
 
                         <!-- Clean Runtime & Battery Status (No Hardware UID or duplicate % clutter) -->
                         <StackPanel VerticalAlignment="Center">
@@ -414,18 +414,18 @@
 
                         <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
                             <TextBlock Text="PRESETS" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextDim}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                            <Button x:Name="BtnPresetZxg" Content="ZXG" Style="{StaticResource LogiChipStyle}" Padding="10,5" Click="Preset_Click" Tag="ZXG" />
-                            <Button x:Name="BtnPresetFlat" Content="Flat" Style="{StaticResource LogiChipStyle}" Padding="10,5" Click="Preset_Click" Tag="Flat" />
-                            <Button x:Name="BtnPresetBass" Content="Deep Bass" Style="{StaticResource LogiChipStyle}" Padding="10,5" Click="Preset_Click" Tag="Deep Bass" />
-                            <Button x:Name="BtnPresetEksa" Content="EKSA Standard" Style="{StaticResource LogiChipStyle}" Padding="10,5" Click="Preset_Click" Tag="EKSA Standard" />
-                            <Button x:Name="BtnPresetClassic" Content="Classic" Style="{StaticResource LogiChipStyle}" Padding="10,5" Click="Preset_Click" Tag="Classic" />
-                            <Button x:Name="BtnPresetPop" Content="Pop" Style="{StaticResource LogiChipStyle}" Padding="10,5" Click="Preset_Click" Tag="Pop" />
-                            <Button x:Name="BtnPresetJazz" Content="Jazz" Style="{StaticResource LogiChipStyle}" Padding="10,5" Click="Preset_Click" Tag="Jazz" />
-                            <Button x:Name="BtnPresetRock" Content="Pack&amp;Roll" Style="{StaticResource LogiChipStyle}" Padding="10,5" Click="Preset_Click" Tag="Pack&amp;Roll" />
+                            <Button x:Name="BtnPresetZxg" Height="28" Content="ZXG" Style="{StaticResource LogiChipStyle}" Padding="11,0" Click="Preset_Click" Tag="ZXG" />
+                            <Button x:Name="BtnPresetFlat" Height="28" Content="Flat" Style="{StaticResource LogiChipStyle}" Padding="11,0" Click="Preset_Click" Tag="Flat" />
+                            <Button x:Name="BtnPresetBass" Height="28" Content="Deep Bass" Style="{StaticResource LogiChipStyle}" Padding="11,0" Click="Preset_Click" Tag="Deep Bass" />
+                            <Button x:Name="BtnPresetEksa" Height="28" Content="EKSA Standard" Style="{StaticResource LogiChipStyle}" Padding="11,0" Click="Preset_Click" Tag="EKSA Standard" />
+                            <Button x:Name="BtnPresetClassic" Height="28" Content="Classic" Style="{StaticResource LogiChipStyle}" Padding="11,0" Click="Preset_Click" Tag="Classic" />
+                            <Button x:Name="BtnPresetPop" Height="28" Content="Pop" Style="{StaticResource LogiChipStyle}" Padding="11,0" Click="Preset_Click" Tag="Pop" />
+                            <Button x:Name="BtnPresetJazz" Height="28" Content="Jazz" Style="{StaticResource LogiChipStyle}" Padding="11,0" Click="Preset_Click" Tag="Jazz" />
+                            <Button x:Name="BtnPresetRock" Height="28" Content="Pack&amp;Roll" Style="{StaticResource LogiChipStyle}" Padding="11,0" Click="Preset_Click" Tag="Pack&amp;Roll" />
                         </StackPanel>
 
-                        <Button Grid.Column="1" Content="Reset (0 dB)" Style="{StaticResource LogiChipStyle}"
-                                Background="Transparent" Foreground="{StaticResource TextDim}" BorderBrush="{StaticResource CardBorder}" Click="BtnResetEq_Click" />
+                        <Button Grid.Column="1" Height="28" Content="Reset (0 dB)" Style="{StaticResource LogiChipStyle}" Padding="11,0"
+                                Background="#14111E" Foreground="#94A3B8" BorderBrush="#3D315B" Click="BtnResetEq_Click" />
                     </Grid>
 
                     <!-- 10 Sliders -->
