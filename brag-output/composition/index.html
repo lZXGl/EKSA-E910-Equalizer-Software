@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>EKSA E910 Companion — Launch</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background-color: #07050d;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #f1f5f9;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: radial-gradient(circle at 50% 25%, #180f2d 0%, #07050d 85%);
+      }
+
+      /* Ambient Purple Glows */
+      .ambient-glow {
+        position: absolute;
+        width: 1000px;
+        height: 1000px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(168, 85, 247, 0.22) 0%, rgba(7, 5, 13, 0) 70%);
+        pointer-events: none;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        filter: blur(80px);
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      /* Scene 1: Hook */
+      .hook-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 18px;
+        border-radius: 9999px;
+        background: rgba(168, 85, 247, 0.14);
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: #c084fc;
+        text-transform: uppercase;
+        margin-bottom: 24px;
+      }
+
+      .hook-title {
+        font-size: 64px;
+        font-weight: 900;
+        line-height: 1.15;
+        text-align: center;
+        max-width: 1100px;
+        color: #f8fafc;
+        letter-spacing: -1.5px;
+      }
+
+      .hook-punch {
+        margin-top: 32px;
+        font-size: 44px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #e9d5ff 0%, #a855f7 50%, #c084fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      /* Scene 2: Reveal */
+      .reveal-header {
+        position: absolute;
+        top: 60px;
+        text-align: center;
+        z-index: 10;
+      }
+
+      .reveal-tag {
+        font-size: 13px;
+        font-weight: 700;
+        color: #c084fc;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      .reveal-title {
+        font-size: 40px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+
+      .preview-container {
+        position: relative;
+        margin-top: 60px;
+        perspective: 1200px;
+      }
+
+      .preview-img {
+        width: 1050px;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 35px 80px -20px rgba(0, 0, 0, 0.9), 0 0 50px 5px rgba(168, 85, 247, 0.25);
+        border: 1px solid rgba(168, 85, 247, 0.35);
+        transform: rotateX(4deg) translateY(0px);
+      }
+
+      .active-callout {
+        position: absolute;
+        top: 85px;
+        left: -40px;
+        background: #231338;
+        border: 1.5px solid #a855f7;
+        padding: 10px 18px;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(168, 85, 247, 0.5);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        font-weight: 800;
+        color: #e9d5ff;
+        z-index: 20;
+      }
+
+      .dot-pulse {
+        width: 10px;
+        height: 10px;
+        background: #c084fc;
+        border-radius: 50%;
+        box-shadow: 0 0 12px #c084fc;
+      }
+
+      /* Scene 3: Feature Highlights */
+      .features-header {
+        text-align: center;
+        margin-bottom: 48px;
+      }
+
+      .features-tag {
+        font-size: 13px;
+        font-weight: 700;
+        color: #c084fc;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      .features-title {
+        font-size: 46px;
+        font-weight: 900;
+        letter-spacing: -1px;
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 400px);
+        gap: 32px;
+      }
+
+      .feature-card {
+        background: rgba(24, 19, 36, 0.8);
+        border: 1px solid rgba(168, 85, 247, 0.25);
+        backdrop-filter: blur(16px);
+        border-radius: 14px;
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 320px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      }
+
+      .card-tag {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 4px;
+        margin-bottom: 16px;
+      }
+
+      .tag-purple {
+        background: #25123e;
+        color: #c084fc;
+        border: 1px solid #a855f7;
+      }
+
+      .card-title {
+        font-size: 24px;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 12px;
+      }
+
+      .card-desc {
+        font-size: 15px;
+        color: #94a3b8;
+        line-height: 1.55;
+      }
+
+      .card-footer {
+        font-size: 12px;
+        font-weight: 700;
+        color: #a855f7;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 16px;
+      }
+
+      /* Scene 4: Outro */
+      .outro-headline {
+        font-size: 60px;
+        font-weight: 900;
+        letter-spacing: -1.5px;
+        color: #ffffff;
+        text-align: center;
+        margin-bottom: 16px;
+      }
+
+      .outro-tagline {
+        font-size: 22px;
+        color: #94a3b8;
+        text-align: center;
+        margin-bottom: 40px;
+      }
+
+      .terminal-box {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        background: #100b1d;
+        border: 1px solid #3b285b;
+        padding: 16px 32px;
+        border-radius: 10px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        color: #e9d5ff;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8), 0 0 25px rgba(168, 85, 247, 0.2);
+        margin-bottom: 24px;
+      }
+
+      .terminal-prompt {
+        color: #a855f7;
+        font-weight: bold;
+      }
+
+      .repo-link {
+        font-size: 16px;
+        font-weight: 700;
+        color: #c084fc;
+        letter-spacing: 0.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="16"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div id="glow" class="ambient-glow"></div>
+
+      <!-- Scene 1: The Hook (0.0s - 3.5s) -->
+      <div id="scene-hook" class="scene clip" data-start="0" data-duration="3.5" data-track-index="1">
+        <div class="hook-tag" id="h-tag">Broken OEM Software? Never Again.</div>
+        <div class="hook-title" id="h-title">Your EKSA E910 Wireless Headset Deserves Real Control.</div>
+        <div class="hook-punch" id="h-punch">
+          <svg style="width: 38px; height: 38px; fill: #A855F7;" viewBox="0 0 24 24">
+            <path d="M3,12 C3,7.03 7.03,3 12,3 C16.97,3 21,7.03 21,12 L21,17 C21,18.66 19.66,20 18,20 L16,20 C15.45,20 15,19.55 15,19 L15,14 C15,13.45 15.45,13 16,13 L19.2,13 C19.1,8.5 15.8,5 12,5 C8.2,5 4.9,8.5 4.8,13 L8,13 C8.55,13 9,13.45 9,14 L9,19 C9,19.55 8.55,20 8,20 L6,20 C4.34,20 3,18.66 3,17 Z"/>
+          </svg>
+          <span>Meet EksaCompanion.</span>
+        </div>
+      </div>
+
+      <!-- Scene 2: The Interface Reveal (3.5s - 8.2s) -->
+      <div id="scene-reveal" class="scene clip" data-start="3.5" data-duration="4.7" data-track-index="2">
+        <div class="reveal-header">
+          <div class="reveal-tag" id="r-tag">Obsidian Electric Purple</div>
+          <div class="reveal-title" id="r-title">Direct Hardware DSP Control & Calibrated Battery</div>
+        </div>
+        <div class="preview-container" id="r-container">
+          <img class="preview-img" id="r-preview" src="assets/preview.png" alt="EksaCompanion UI" />
+          <div class="active-callout" id="r-callout">
+            <div class="dot-pulse"></div>
+            <span>5.8GHz DONGLE ACTIVE (COL01)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 3: Feature Highlights (8.2s - 13.0s) -->
+      <div id="scene-features" class="scene clip" data-start="8.2" data-duration="4.8" data-track-index="3">
+        <div class="features-header">
+          <div class="features-tag" id="f-tag">Engineered for Perfection</div>
+          <div class="features-title" id="f-title">Hardware Features That Actually Work</div>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card" id="card-1">
+            <div class="card-top">
+              <span class="card-tag tag-purple">HARDWARE PEQ</span>
+              <div class="card-title">ZXG Tuned Preset</div>
+              <div class="card-desc">Writes true Q2.30 biquad filter coefficients directly to the EKSA transmitter DSP via dual 45-byte packets.</div>
+            </div>
+            <div class="card-footer">
+              <span>● ACTIVE PROFILE INCLUDED</span>
+            </div>
+          </div>
+          <div class="feature-card" id="card-2">
+            <div class="card-top">
+              <span class="card-tag tag-purple">DSP SWITCHING</span>
+              <div class="card-title">Surround & Mic ENC</div>
+              <div class="card-desc">Instant 7.1 Virtual Surround sound and microphone Environmental Noise Cancellation via 0x31 algorithm commands.</div>
+            </div>
+            <div class="card-footer">
+              <span>● ZERO AUDIO LATENCY</span>
+            </div>
+          </div>
+          <div class="feature-card" id="card-3">
+            <div class="card-top">
+              <span class="card-tag tag-purple">ZERO BLOAT</span>
+              <div class="card-title">Calibrated Battery</div>
+              <div class="card-desc">Real active usage time tracking (20% at 5h, 6h15m total), auto-overnight charging detection, and tray auto-start.</div>
+            </div>
+            <div class="card-footer">
+              <span>● LIGHTWEIGHT C# WPF</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 4: Outro (13.0s - 16.0s) -->
+      <div id="scene-outro" class="scene clip" data-start="13.0" data-duration="3.0" data-track-index="4">
+        <div class="outro-headline" id="o-head">Take Control of Your EKSA Headset.</div>
+        <div class="outro-tagline" id="o-tag">Zero Bloat · Direct Hardware DSP · Open Source</div>
+        <div class="terminal-box" id="o-term">
+          <span class="terminal-prompt">$</span>
+          <span>git clone https://github.com/lZXGl/EksaCompanion.git</span>
+        </div>
+        <div class="repo-link" id="o-repo">github.com/lZXGl/EksaCompanion</div>
+      </div>
+
+      <!-- Audio Elements -->
+      <audio id="bg-music" data-start="0" data-duration="16" data-track-index="10" data-volume="0.35" src="assets/music.mp3"></audio>
+      <audio id="sfx-thud" data-start="1.4" data-duration="0.12" data-track-index="11" data-volume="0.6" src="assets/sfx/impact/impactSoft_medium_000.ogg"></audio>
+      <audio id="sfx-chime" data-start="3.5" data-duration="0.13" data-track-index="12" data-volume="0.6" src="assets/sfx/interface/bong_001.ogg"></audio>
+      <audio id="sfx-click1" data-start="8.6" data-duration="0.10" data-track-index="13" data-volume="0.5" src="assets/sfx/ui/click1.ogg"></audio>
+      <audio id="sfx-click2" data-start="9.8" data-duration="0.10" data-track-index="14" data-volume="0.5" src="assets/sfx/ui/click1.ogg"></audio>
+      <audio id="sfx-click3" data-start="11.0" data-duration="0.10" data-track-index="15" data-volume="0.5" src="assets/sfx/ui/click1.ogg"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // Ambient glow pulse
+      tl.to("#glow", { scale: 1.2, opacity: 0.9, duration: 3.5, yoyo: true, repeat: 4, ease: "sine.inOut" }, 0);
+
+      // --- Scene 1: The Hook (0.0s - 3.5s) ---
+      tl.set("#scene-hook", { opacity: 1 }, 0);
+      tl.fromTo("#h-tag", { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 0.2);
+      tl.fromTo("#h-title", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 0.4);
+      tl.fromTo("#h-punch", { opacity: 0, scale: 0.85, y: 30 }, { opacity: 1, scale: 1, y: 0, duration: 0.7, ease: "back.out(1.4)" }, 1.4);
+      tl.to("#scene-hook", { opacity: 0, scale: 1.05, duration: 0.4, ease: "power2.in" }, 3.1);
+
+      // --- Scene 2: Reveal (3.5s - 8.2s) ---
+      tl.set("#scene-reveal", { opacity: 1 }, 3.5);
+      tl.fromTo("#r-tag", { opacity: 0, y: -15 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 3.5);
+      tl.fromTo("#r-title", { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 3.6);
+      tl.fromTo("#r-preview", { opacity: 0, y: 90, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "power3.out" }, 3.7);
+      tl.fromTo("#r-callout", { opacity: 0, scale: 0.7, x: -30 }, { opacity: 1, scale: 1, x: 0, duration: 0.6, ease: "back.out(1.5)" }, 4.3);
+      tl.to("#scene-reveal", { opacity: 0, y: -40, duration: 0.4, ease: "power2.in" }, 7.8);
+
+      // --- Scene 3: Features (8.2s - 13.0s) ---
+      tl.set("#scene-features", { opacity: 1 }, 8.2);
+      tl.fromTo("#f-tag", { opacity: 0, y: -15 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 8.2);
+      tl.fromTo("#f-title", { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 8.3);
+      
+      tl.fromTo("#card-1", { opacity: 0, y: 50, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.2)" }, 8.6);
+      tl.fromTo("#card-2", { opacity: 0, y: 50, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.2)" }, 9.8);
+      tl.fromTo("#card-3", { opacity: 0, y: 50, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.2)" }, 11.0);
+      tl.to("#scene-features", { opacity: 0, scale: 0.96, duration: 0.4, ease: "power2.in" }, 12.6);
+
+      // --- Scene 4: Outro (13.0s - 16.0s) ---
+      tl.set("#scene-outro", { opacity: 1 }, 13.0);
+      tl.fromTo("#o-head", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 13.1);
+      tl.fromTo("#o-tag", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 13.3);
+      tl.fromTo("#o-term", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.3)" }, 13.6);
+      tl.fromTo("#o-repo", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 14.0);
+
+      tl.to("#root", { opacity: 0, duration: 0.5, ease: "power2.in" }, 15.5);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

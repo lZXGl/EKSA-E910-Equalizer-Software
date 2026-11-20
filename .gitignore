@@ -1,7 +1,5 @@
-# Build output and intermediate artifacts
-bin/
+# Intermediate build artifacts
 obj/
-brag-output/
 
 # Logs, debug symbols, and local IDE state
 *.log
@@ -9,4 +7,3 @@ brag-output/
 *.user
 *.suo
 .vs/
-
