@@ -62,6 +62,7 @@ namespace EksaCompanion
         private readonly object _lock = new object();
         private Thread _pollThread;
         private volatile bool _isRunning = false;
+        private bool _wasConnected = false;
         private bool _surroundEnabled = false;
         private bool _micEncEnabled = false;
         private sbyte[] _lastGains = null;
@@ -387,7 +388,7 @@ namespace EksaCompanion
             return ok1 && ok2;
         }
 
-        public bool SetEqualizer(sbyte[] gains, string presetName = null)
+        public bool SetEqualizer(sbyte[] gains, string presetName = null, bool forceSlotCycle = true)
         {
             if (gains == null || gains.Length < 10)
                 return false;
@@ -398,25 +399,54 @@ namespace EksaCompanion
 
             byte customizeType = GetOemCustomizeType(_lastPresetName, _surroundEnabled);
 
-            // Send PEQ packets to bank 0x00 and active OEM slot on bank 0x01 without overwriting active slot
+            // If the headset power-cycled (e.g. 5-hour hardware auto-off), the dongle MCU still caches
+            // the previous customizeType slot index and ignores re-sending the same slot unless we first
+            // unlatch it with an alternate slot ID (loaded with the exact same gains so tone never jumps).
+            if (forceSlotCycle)
+            {
+                byte altSlot = _surroundEnabled
+                    ? (customizeType == 0x10 ? (byte)0x11 : (byte)0x10)
+                    : (customizeType == 0x01 ? (byte)0x02 : (byte)0x01);
+                SendPeqBank(gains, _surroundEnabled ? (byte)0x00 : (byte)0x01, altSlot);
+            }
+
+            // Send PEQ packets to bank 0x00 and active OEM slot on bank 0x01
             bool okType0 = SendPeqBank(gains, 0x00, customizeType);
             bool okActiveSlot = SendPeqBank(gains, 0x01, customizeType);
 
-            // Trigger algorithm switch (0x31) to activate the filter curve in the hardware DSP
+            // Trigger full two-step algorithm switch (0x31) to force the DSP biquad pipeline to reload
             bool okSwitch;
             if (_surroundEnabled)
             {
+                SetAlgorithmSwitch(1, 1, 0, 2);
                 okSwitch = SetAlgorithmSwitch(1, 1, 0, 0);
             }
             else
             {
+                SetAlgorithmSwitch(1, 2, 0, 1);
                 okSwitch = SetAlgorithmSwitch(1, 0, 0, 1);
             }
 
-            App.Log(string.Format("SetEqualizer(preset={0}, slot=0x{1:X2}): type0={2}, activeSlot={3}, switch={4}",
-                _lastPresetName, customizeType, okType0, okActiveSlot, okSwitch));
+            App.Log(string.Format("SetEqualizer(preset={0}, slot=0x{1:X2}, cycle={2}): type0={3}, activeSlot={4}, switch={5}",
+                _lastPresetName, customizeType, forceSlotCycle, okType0, okActiveSlot, okSwitch));
 
             return (okType0 || okActiveSlot) && okSwitch;
+        }
+
+        public void ResyncHardwareState()
+        {
+            try
+            {
+                SetMicEnc(_micEncEnabled);
+                if (_lastGains != null)
+                    SetEqualizer(_lastGains, _lastPresetName, true);
+                else
+                    SetAudioMode(_surroundEnabled);
+            }
+            catch (Exception ex)
+            {
+                App.Log("ResyncHardwareState error: " + ex.Message);
+            }
         }
 
         public bool QueryStatus(out bool isConnected, out string deviceUid)
@@ -455,6 +485,11 @@ namespace EksaCompanion
 
                     if (connected && QueryStatus(out statusConnected, out uid))
                     {
+                        if (!_wasConnected)
+                        {
+                            _wasConnected = true;
+                            ResyncHardwareState();
+                        }
                         var handler = StatusUpdated;
                         if (handler != null)
                         {
@@ -468,6 +503,7 @@ namespace EksaCompanion
                     }
                     else
                     {
+                        _wasConnected = false;
                         var handler = StatusUpdated;
                         if (handler != null)
                         {

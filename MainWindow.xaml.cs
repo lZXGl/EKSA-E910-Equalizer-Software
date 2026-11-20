@@ -33,6 +33,7 @@ namespace EksaCompanion
         private DateTime _lastAudioDetectedUtc = DateTime.MinValue;
         private DateTime _lastMicDetectedUtc = DateTime.MinValue;
         private DateTime _lastBatteryTickUtc = DateTime.UtcNow;
+        private DateTime _lastEqAutoResyncUtc = DateTime.UtcNow;
         private bool _isAudioActive = false;
         private bool _isSoundPlayingNow = false;
         private bool _isMicActiveNow = false;
@@ -260,6 +261,14 @@ namespace EksaCompanion
             });
             contextMenu.Items.Add(itemAntiSkip);
 
+            // Re-Sync EQ Now (one-click slot cycle if headset just powered back on)
+            ToolStripMenuItem itemResyncEq = new ToolStripMenuItem("Re-Sync EQ Now", null, delegate(object s, EventArgs e)
+            {
+                _lastEqAutoResyncUtc = DateTime.UtcNow;
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate { _hardware.ResyncHardwareState(); });
+            });
+            contextMenu.Items.Add(itemResyncEq);
+
             // Battery Reset
             ToolStripMenuItem itemChargeReset = new ToolStripMenuItem("Mark Battery Charged (100%)", null, delegate(object s, EventArgs e) { ResetBatteryToFull(); });
             contextMenu.Items.Add(itemChargeReset);
@@ -316,12 +325,21 @@ namespace EksaCompanion
                 _lastAudioDetectedUtc = nowUtc;
 
             // Strictly audio-only: active while sound is playing, disables/pauses after 15 seconds of silence
+            bool wasAudioActive = _isAudioActive;
             bool soundWithinHold = (_lastAudioDetectedUtc != DateTime.MinValue) &&
                                    ((nowUtc - _lastAudioDetectedUtc).TotalSeconds <= ActivityHoldWindowSeconds);
 
             _isSoundPlayingNow = soundWithinHold;
             _isMicActiveNow = false;
             _isAudioActive = soundWithinHold;
+
+            // Auto-Resync Hardware DSP EQ when waking from idle OR every 45s of active audio
+            // (Automatically restores EQ with slot-unlatch cycle if the headset powered off/on after 5 hours)
+            if (soundWithinHold && (!wasAudioActive || (nowUtc - _lastEqAutoResyncUtc).TotalSeconds >= 45.0))
+            {
+                _lastEqAutoResyncUtc = nowUtc;
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate { _hardware.ResyncHardwareState(); });
+            }
 
             // Smart On-Demand Anti-Skip Keep-Alive:
             // Opens immediately when audio plays, disables after 15 seconds of no audio for 0% idle battery drain
@@ -625,7 +643,8 @@ namespace EksaCompanion
 
                 _settings.SelectedPreset = "Custom";
                 HighlightPresetButton("Custom");
-                _hardware.SetEqualizer(_settings.EqBands, "Custom");
+                _lastEqAutoResyncUtc = DateTime.UtcNow;
+                _hardware.SetEqualizer(_settings.EqBands, "Custom", false);
                 _settings.Save();
             }
         }
