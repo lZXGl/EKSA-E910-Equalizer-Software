@@ -16,6 +16,7 @@ namespace EksaCompanion
         public bool AutoStart { get; set; }
         public bool MicEncEnabled { get; set; }
         public bool SurroundEnabled { get; set; }
+        public bool AntiSkipEnabled { get; set; }
         public string SelectedPreset { get; set; }
         public sbyte[] EqBands { get; set; }
         public DateTime LastChargedTime { get; set; }
@@ -28,6 +29,7 @@ namespace EksaCompanion
             AutoStart = false;
             MicEncEnabled = true; // Default ON (runs on USB dongle DSP, 0% battery impact)
             SurroundEnabled = false;
+            AntiSkipEnabled = true; // Smart on-demand 16Hz/22kHz gate hold (0% drain when idle)
             SelectedPreset = "ZXG"; // User's custom preset by default!
             EqBands = new sbyte[10] { 2, 3, 2, -2, 0, 1, 0, 2, -3, 3 };
             LastChargedTime = DateTime.Now;
@@ -62,6 +64,7 @@ namespace EksaCompanion
                     settings.AutoStart = ExtractBool(json, "AutoStart", false);
                     settings.MicEncEnabled = ExtractBool(json, "MicEncEnabled", true);
                     settings.SurroundEnabled = ExtractBool(json, "SurroundEnabled", false);
+                    settings.AntiSkipEnabled = ExtractBool(json, "AntiSkipEnabled", true);
                     settings.SelectedPreset = ExtractString(json, "SelectedPreset", "ZXG");
                     if (settings.SelectedPreset == "ZXG (Custom)")
                         settings.SelectedPreset = "ZXG";
@@ -96,6 +99,7 @@ namespace EksaCompanion
                 sb.AppendLine(string.Format("  \"AutoStart\": {0},", AutoStart.ToString().ToLower()));
                 sb.AppendLine(string.Format("  \"MicEncEnabled\": {0},", MicEncEnabled.ToString().ToLower()));
                 sb.AppendLine(string.Format("  \"SurroundEnabled\": {0},", SurroundEnabled.ToString().ToLower()));
+                sb.AppendLine(string.Format("  \"AntiSkipEnabled\": {0},", AntiSkipEnabled.ToString().ToLower()));
                 sb.AppendLine(string.Format("  \"SelectedPreset\": \"{0}\",", SelectedPreset));
                 sb.AppendLine(string.Format("  \"LastChargedTime\": \"{0:o}\",", LastChargedTime));
                 sb.AppendLine(string.Format("  \"LastActiveTime\": \"{0:o}\",", LastActiveTime));

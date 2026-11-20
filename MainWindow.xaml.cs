@@ -18,7 +18,8 @@ namespace EksaCompanion
         // Exact measured calibration (Modded 803040PT + LEDs removed):
         // Reached 20% low-battery beep at exactly 48,931.9s (13h 35.5m) => 5.8857% per hour (17h 0m total capacity)
         private const double BatteryDrainPercentPerHour = 5.8857;
-        private const double AudioGraceWindowSeconds = 120.0;
+        private const double ActivityHoldWindowSeconds = 15.0;
+        private const double KeepAliveHoldWindowSeconds = 15.0;
 
         private readonly EksaHardware _hardware;
         private readonly AppSettings _settings;
@@ -30,9 +31,17 @@ namespace EksaCompanion
         private bool _isUpdatingUi = false;
         private DateTime _suppressSliderEventsUntil = DateTime.MinValue;
         private DateTime _lastAudioDetectedUtc = DateTime.MinValue;
+        private DateTime _lastMicDetectedUtc = DateTime.MinValue;
         private DateTime _lastBatteryTickUtc = DateTime.UtcNow;
         private bool _isAudioActive = false;
+        private bool _isSoundPlayingNow = false;
+        private bool _isMicActiveNow = false;
         private int _ticksSinceSave = 0;
+
+        public bool StartMinimizedSetting
+        {
+            get { return _settings != null ? _settings.StartMinimized : true; }
+        }
 
         public MainWindow()
         {
@@ -72,48 +81,29 @@ namespace EksaCompanion
             ApplySettingsToUi();
 
             _lastBatteryTickUtc = DateTime.UtcNow;
-            if (_hardware.IsConnected && WindowsAudio.GetMasterPeakAudio() > 0.0005f)
-            {
-                _lastAudioDetectedUtc = DateTime.UtcNow;
-                _isAudioActive = true;
-            }
+            RefreshActivityAndKeepAlive(DateTime.UtcNow);
             UpdateBatteryUi();
 
             _batteryTimer = new DispatcherTimer();
-            _batteryTimer.Interval = TimeSpan.FromSeconds(2);
+            _batteryTimer.Interval = TimeSpan.FromSeconds(1);
             _batteryTimer.Tick += delegate(object s, EventArgs e)
             {
                 DateTime nowUtc = DateTime.UtcNow;
-                double dt = Math.Max(0.0, Math.Min(10.0, (nowUtc - _lastBatteryTickUtc).TotalSeconds));
+                double dt = Math.Max(0.0, Math.Min(5.0, (nowUtc - _lastBatteryTickUtc).TotalSeconds));
                 _lastBatteryTickUtc = nowUtc;
 
-                if (_hardware.IsConnected)
-                {
-                    float peak = WindowsAudio.GetMasterPeakAudio();
-                    if (peak > 0.0005f)
-                    {
-                        _lastAudioDetectedUtc = nowUtc;
-                    }
+                RefreshActivityAndKeepAlive(nowUtc);
 
-                    bool withinGrace = (_lastAudioDetectedUtc != DateTime.MinValue) &&
-                                       ((nowUtc - _lastAudioDetectedUtc).TotalSeconds <= AudioGraceWindowSeconds);
-                    _isAudioActive = withinGrace;
-
-                    if (_isAudioActive)
-                    {
-                        _settings.ActiveUsedSeconds += dt;
-                        _settings.LastActiveTime = DateTime.Now;
-                        _ticksSinceSave++;
-                        if (_ticksSinceSave >= 15)
-                        {
-                            _ticksSinceSave = 0;
-                            _settings.Save();
-                        }
-                    }
-                }
-                else
+                if (_hardware.IsConnected && _isAudioActive)
                 {
-                    _isAudioActive = false;
+                    _settings.ActiveUsedSeconds += dt;
+                    _settings.LastActiveTime = DateTime.Now;
+                    _ticksSinceSave++;
+                    if (_ticksSinceSave >= 30)
+                    {
+                        _ticksSinceSave = 0;
+                        _settings.Save();
+                    }
                 }
                 UpdateBatteryUi();
             };
@@ -255,12 +245,40 @@ namespace EksaCompanion
             ToolStripMenuItem itemMicEnc = new ToolStripMenuItem("Mic ENC (Noise Cancel)", null, delegate(object s, EventArgs e) { ToggleMicEnc(); });
             contextMenu.Items.Add(itemMicEnc);
 
+            // Anti-Skip Low-Freq Gate
+            ToolStripMenuItem itemAntiSkip = new ToolStripMenuItem("Anti-Skip Low-Freq Gate", null, delegate(object s, EventArgs e)
+            {
+                _settings.AntiSkipEnabled = !_settings.AntiSkipEnabled;
+                _isUpdatingUi = true;
+                ChkAntiSkip.IsChecked = _settings.AntiSkipEnabled;
+                _isUpdatingUi = false;
+                if (!_settings.AntiSkipEnabled)
+                    AntiSkipKeepAlive.Stop();
+                else
+                    RefreshActivityAndKeepAlive(DateTime.UtcNow);
+                _settings.Save();
+            });
+            contextMenu.Items.Add(itemAntiSkip);
+
             // Battery Reset
             ToolStripMenuItem itemChargeReset = new ToolStripMenuItem("Mark Battery Charged (100%)", null, delegate(object s, EventArgs e) { ResetBatteryToFull(); });
             contextMenu.Items.Add(itemChargeReset);
 
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(new ToolStripMenuItem("Exit", null, delegate(object s, EventArgs e) { ExitApplication(); }));
+
+            contextMenu.Opening += delegate(object s, System.ComponentModel.CancelEventArgs e)
+            {
+                itemSurround.Checked = _settings != null && _settings.SurroundEnabled;
+                itemMicEnc.Checked = _settings != null && _settings.MicEncEnabled;
+                itemAntiSkip.Checked = _settings != null && _settings.AntiSkipEnabled;
+                foreach (ToolStripItem sub in menuPresets.DropDownItems)
+                {
+                    ToolStripMenuItem mi = sub as ToolStripMenuItem;
+                    if (mi != null)
+                        mi.Checked = _settings != null && string.Equals(mi.Text, _settings.SelectedPreset, StringComparison.OrdinalIgnoreCase);
+                }
+            };
 
             _notifyIcon.ContextMenuStrip = contextMenu;
         }
@@ -277,6 +295,42 @@ namespace EksaCompanion
                 FillBehavior = FillBehavior.Stop
             };
             slider.BeginAnimation(RangeBase.ValueProperty, anim);
+        }
+
+        private void RefreshActivityAndKeepAlive(DateTime nowUtc)
+        {
+            if (_hardware == null || !_hardware.IsConnected)
+            {
+                _isAudioActive = false;
+                _isSoundPlayingNow = false;
+                _isMicActiveNow = false;
+                AntiSkipKeepAlive.Stop();
+                return;
+            }
+
+            bool soundPlaying, micInUse;
+            float renderPeak, micPeak;
+            WindowsAudio.GetActivityState(out soundPlaying, out micInUse, out renderPeak, out micPeak);
+
+            if (soundPlaying)
+                _lastAudioDetectedUtc = nowUtc;
+
+            // Strictly audio-only: active while sound is playing, disables/pauses after 15 seconds of silence
+            bool soundWithinHold = (_lastAudioDetectedUtc != DateTime.MinValue) &&
+                                   ((nowUtc - _lastAudioDetectedUtc).TotalSeconds <= ActivityHoldWindowSeconds);
+
+            _isSoundPlayingNow = soundWithinHold;
+            _isMicActiveNow = false;
+            _isAudioActive = soundWithinHold;
+
+            // Smart On-Demand Anti-Skip Keep-Alive:
+            // Opens immediately when audio plays, disables after 15 seconds of no audio for 0% idle battery drain
+            bool keepAliveShouldRun = _settings.AntiSkipEnabled && soundWithinHold;
+
+            if (keepAliveShouldRun)
+                AntiSkipKeepAlive.Start();
+            else
+                AntiSkipKeepAlive.Stop();
         }
 
         private int GetBatteryPercentage(out double elapsedHours)
@@ -357,28 +411,26 @@ namespace EksaCompanion
 
             if (_hardware != null && _hardware.IsConnected)
             {
-                if (WindowsAudio.GetMasterPeakAudio() > 0.0005f)
-                {
-                    _lastAudioDetectedUtc = DateTime.UtcNow;
-                    _isAudioActive = true;
-                }
-
                 if (_isAudioActive)
                 {
-                    TxtRuntimeSub.Text = string.Format("Active {0}h {1}m · ~{2}h {3}m left", usedH, usedM, remH, remM);
+                    string reason = (_isSoundPlayingNow && _isMicActiveNow) ? "Audio + Mic"
+                                  : (_isMicActiveNow ? "Mic In Use" : "Audio");
+                    TxtRuntimeSub.Text = string.Format("Active ({0}) {1}h {2}m · ~{3}h {4}m left", reason, usedH, usedM, remH, remM);
                 }
                 else
                 {
-                    TxtRuntimeSub.Text = string.Format("Paused (No Audio) · ~{0}h {1}m left", remH, remM);
+                    TxtRuntimeSub.Text = string.Format("Idle (Paused) · ~{0}h {1}m left", remH, remM);
                 }
 
                 if (_notifyIcon != null)
                 {
-                    _notifyIcon.Text = string.Format("EKSA E910: {0}%{1} | {2} | ENC {3}",
+                    string tip = string.Format("EKSA E910: {0}%{1} | {2} | ENC {3}",
                         pct,
-                        (_isAudioActive ? "" : " (Paused)"),
+                        (_isAudioActive ? "" : " (Idle)"),
                         (_settings.SurroundEnabled ? "7.1" : "Stereo"),
                         (_settings.MicEncEnabled ? "On" : "Off"));
+                    if (tip.Length > 63) tip = tip.Substring(0, 63);
+                    _notifyIcon.Text = tip;
                 }
             }
             else
@@ -419,6 +471,7 @@ namespace EksaCompanion
 
             ChkAutoStart.IsChecked = _settings.AutoStart;
             ChkStartMinimized.IsChecked = _settings.StartMinimized;
+            ChkAntiSkip.IsChecked = _settings.AntiSkipEnabled;
 
             UpdateMicEncUi(_settings.MicEncEnabled);
             UpdateSurroundUi(_settings.SurroundEnabled);
@@ -655,6 +708,17 @@ namespace EksaCompanion
             _settings.Save();
         }
 
+        private void ChkAntiSkip_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isUpdatingUi) return;
+            _settings.AntiSkipEnabled = ChkAntiSkip.IsChecked == true;
+            if (!_settings.AntiSkipEnabled)
+                AntiSkipKeepAlive.Stop();
+            else
+                RefreshActivityAndKeepAlive(DateTime.UtcNow);
+            _settings.Save();
+        }
+
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Left)
@@ -751,6 +815,7 @@ namespace EksaCompanion
         public void ExitApplication()
         {
             _isRealExit = true;
+            AntiSkipKeepAlive.Stop();
             _settings.LastChargedTime = DateTime.Now;
             _settings.LastActiveTime = DateTime.Now;
             _settings.ActiveUsedSeconds = 0.0;

@@ -116,12 +116,11 @@ namespace EksaCompanion
             }
 
             bool startMinimized = true;
-            AppSettings settings = AppSettings.Load();
             if (e.Args.Length > 0 && e.Args[0].Equals("--show", StringComparison.OrdinalIgnoreCase))
             {
                 startMinimized = false;
             }
-            else if (!settings.StartMinimized && (e.Args.Length == 0 || !e.Args[0].Equals("--minimized", StringComparison.OrdinalIgnoreCase)))
+            else if (!mainWindow.StartMinimizedSetting && (e.Args.Length == 0 || !e.Args[0].Equals("--minimized", StringComparison.OrdinalIgnoreCase)))
             {
                 startMinimized = false;
             }

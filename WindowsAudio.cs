@@ -1,11 +1,210 @@
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace EksaCompanion
 {
+    public static class AntiSkipKeepAlive
+    {
+        private const int CALLBACK_NULL = 0x00000000;
+        private const uint WHDR_BEGINLOOP = 0x00000004;
+        private const uint WHDR_ENDLOOP = 0x00000008;
+        private const uint WAVE_MAPPER = unchecked((uint)-1);
+
+        private const int SampleRate = 48000;
+        private const int Channels = 2;
+        private const int BitsPerSample = 16;
+        private const int BytesPerSample = 2;
+        private const int BufferBytes = SampleRate * Channels * BytesPerSample;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct WAVEFORMATEX
+        {
+            public ushort wFormatTag;
+            public ushort nChannels;
+            public uint nSamplesPerSec;
+            public uint nAvgBytesPerSec;
+            public ushort nBlockAlign;
+            public ushort wBitsPerSample;
+            public ushort cbSize;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct WAVEHDR
+        {
+            public IntPtr lpData;
+            public uint dwBufferLength;
+            public uint dwBytesRecorded;
+            public IntPtr dwUser;
+            public uint dwFlags;
+            public uint dwLoops;
+            public IntPtr lpNext;
+            public IntPtr reserved;
+        }
+
+        [DllImport("winmm.dll")]
+        private static extern int waveOutOpen(out IntPtr hWaveOut, uint uDeviceID, ref WAVEFORMATEX lpFormat, IntPtr dwCallback, IntPtr dwInstance, int dwFlags);
+
+        [DllImport("winmm.dll")]
+        private static extern int waveOutPrepareHeader(IntPtr hWaveOut, IntPtr lpWaveOutHdr, int uSize);
+
+        [DllImport("winmm.dll")]
+        private static extern int waveOutWrite(IntPtr hWaveOut, IntPtr lpWaveOutHdr, int uSize);
+
+        [DllImport("winmm.dll")]
+        private static extern int waveOutReset(IntPtr hWaveOut);
+
+        [DllImport("winmm.dll")]
+        private static extern int waveOutUnprepareHeader(IntPtr hWaveOut, IntPtr lpWaveOutHdr, int uSize);
+
+        [DllImport("winmm.dll")]
+        private static extern int waveOutClose(IntPtr hWaveOut);
+
+        private static readonly object _sync = new object();
+        private static readonly short[] _pilotPcm = BuildPilotPcm();
+        private static IntPtr _hWaveOut = IntPtr.Zero;
+        private static IntPtr _pSampleBuffer = IntPtr.Zero;
+        private static IntPtr _pHeader = IntPtr.Zero;
+        private static volatile bool _isPlaying = false;
+
+        public static bool IsPlaying
+        {
+            get { return _isPlaying; }
+        }
+
+        private static short[] BuildPilotPcm()
+        {
+            // Pure 14 Hz sub-audible pilot wave (14 exact integer cycles in 48,000 samples = seamless loop)
+            // Holds the Hongkong Nano IC 5.8GHz DAC zero-detect gate open while audio is active (< 0.0003 mW speaker power)
+            short[] pcm = new short[SampleRate * Channels];
+            const double subFreq = 14.0;
+            const double subAmp = 90.0; // ~0.0027 scalar (-51 dBFS)
+
+            for (int i = 0; i < SampleRate; i++)
+            {
+                double t = (double)i / SampleRate;
+                short s = (short)Math.Round(Math.Sin(2.0 * Math.PI * subFreq * t) * subAmp);
+                pcm[i * 2] = s;
+                pcm[i * 2 + 1] = s;
+            }
+            return pcm;
+        }
+
+        public static void Start()
+        {
+            lock (_sync)
+            {
+                if (_isPlaying) return;
+
+                try
+                {
+                    WAVEFORMATEX fmt = new WAVEFORMATEX
+                    {
+                        wFormatTag = 1, // WAVE_FORMAT_PCM
+                        nChannels = Channels,
+                        nSamplesPerSec = (uint)SampleRate,
+                        wBitsPerSample = BitsPerSample,
+                        nBlockAlign = (ushort)(Channels * BytesPerSample),
+                        nAvgBytesPerSec = (uint)(SampleRate * Channels * BytesPerSample),
+                        cbSize = 0
+                    };
+
+                    IntPtr hOut;
+                    int rc = waveOutOpen(out hOut, WAVE_MAPPER, ref fmt, IntPtr.Zero, IntPtr.Zero, CALLBACK_NULL);
+                    if (rc != 0 || hOut == IntPtr.Zero)
+                        return;
+
+                    _pSampleBuffer = Marshal.AllocHGlobal(BufferBytes);
+                    Marshal.Copy(_pilotPcm, 0, _pSampleBuffer, _pilotPcm.Length);
+
+                    WAVEHDR hdr = new WAVEHDR
+                    {
+                        lpData = _pSampleBuffer,
+                        dwBufferLength = (uint)BufferBytes,
+                        dwFlags = WHDR_BEGINLOOP | WHDR_ENDLOOP,
+                        dwLoops = 0xFFFFFFFF
+                    };
+
+                    int hdrSize = Marshal.SizeOf(typeof(WAVEHDR));
+                    _pHeader = Marshal.AllocHGlobal(hdrSize);
+                    Marshal.StructureToPtr(hdr, _pHeader, false);
+
+                    if (waveOutPrepareHeader(hOut, _pHeader, hdrSize) == 0 &&
+                        waveOutWrite(hOut, _pHeader, hdrSize) == 0)
+                    {
+                        _hWaveOut = hOut;
+                        _isPlaying = true;
+                        App.Log("AntiSkipKeepAlive started (14Hz pilot gate hold active)");
+                    }
+                    else
+                    {
+                        waveOutClose(hOut);
+                        FreeBuffers();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    App.Log("AntiSkipKeepAlive.Start error: " + ex.Message);
+                    FreeBuffers();
+                }
+            }
+        }
+
+        public static void Stop()
+        {
+            lock (_sync)
+            {
+                if (!_isPlaying && _hWaveOut == IntPtr.Zero)
+                    return;
+
+                try
+                {
+                    if (_hWaveOut != IntPtr.Zero)
+                    {
+                        waveOutReset(_hWaveOut);
+                        if (_pHeader != IntPtr.Zero)
+                        {
+                            waveOutUnprepareHeader(_hWaveOut, _pHeader, Marshal.SizeOf(typeof(WAVEHDR)));
+                        }
+                        waveOutClose(_hWaveOut);
+                        _hWaveOut = IntPtr.Zero;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    App.Log("AntiSkipKeepAlive.Stop error: " + ex.Message);
+                }
+                finally
+                {
+                    FreeBuffers();
+                    if (_isPlaying)
+                    {
+                        _isPlaying = false;
+                        App.Log("AntiSkipKeepAlive stopped (0% idle battery drain)");
+                    }
+                }
+            }
+        }
+
+        private static void FreeBuffers()
+        {
+            if (_pHeader != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(_pHeader);
+                _pHeader = IntPtr.Zero;
+            }
+            if (_pSampleBuffer != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(_pSampleBuffer);
+                _pSampleBuffer = IntPtr.Zero;
+            }
+        }
+    }
+
     public static class WindowsAudio
     {
         private const int CLSCTX_ALL = 23;
+        private static readonly uint _currentPid = (uint)Process.GetCurrentProcess().Id;
 
         [ComImport]
         [Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
@@ -96,6 +295,39 @@ namespace EksaCompanion
             int GetState(out int pRetVal);
         }
 
+        [Guid("bfb7ff88-7239-4fc9-8fa2-07c950be9c6d"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IAudioSessionControl2
+        {
+            [PreserveSig]
+            int GetState(out int pRetVal);
+            [PreserveSig]
+            int GetDisplayName([MarshalAs(UnmanagedType.LPWStr)] out string pRetVal);
+            [PreserveSig]
+            int SetDisplayName([MarshalAs(UnmanagedType.LPWStr)] string Value, ref Guid EventContext);
+            [PreserveSig]
+            int GetIconPath([MarshalAs(UnmanagedType.LPWStr)] out string pRetVal);
+            [PreserveSig]
+            int SetIconPath([MarshalAs(UnmanagedType.LPWStr)] string Value, ref Guid EventContext);
+            [PreserveSig]
+            int GetGroupingParam(out Guid pRetVal);
+            [PreserveSig]
+            int SetGroupingParam(ref Guid Override, ref Guid EventContext);
+            [PreserveSig]
+            int RegisterAudioSessionNotification(IntPtr NewNotifications);
+            [PreserveSig]
+            int UnregisterAudioSessionNotification(IntPtr NewNotifications);
+            [PreserveSig]
+            int GetSessionIdentifier([MarshalAs(UnmanagedType.LPWStr)] out string pRetVal);
+            [PreserveSig]
+            int GetSessionInstanceIdentifier([MarshalAs(UnmanagedType.LPWStr)] out string pRetVal);
+            [PreserveSig]
+            int GetProcessId(out uint pRetVal);
+            [PreserveSig]
+            int IsSystemSoundsSession();
+            [PreserveSig]
+            int SetDuckingPreference([MarshalAs(UnmanagedType.Bool)] bool optOut);
+        }
+
         [Guid("5CDF2C82-841E-4546-9722-0CF74078229A"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
         private interface IAudioEndpointVolume
         {
@@ -129,126 +361,201 @@ namespace EksaCompanion
             int GetVolumeRange(out float volumeMindB, out float volumeMaxdB, out float volumeIncrementdB);
         }
 
-        private static float CheckDeviceAudioActivity(IMMDevice dev, ref Guid meterGuid, ref Guid sessionMgrGuid)
+        private static void SafeRelease(object comObj)
         {
-            float maxPeak = 0f;
+            if (comObj != null && Marshal.IsComObject(comObj))
+            {
+                try { Marshal.ReleaseComObject(comObj); } catch { }
+            }
+        }
+
+        private static float CheckExternalRenderPeak(IMMDevice dev, ref Guid meterGuid, ref Guid sessionMgrGuid)
+        {
+            float maxSessionPeak = 0f;
+            bool checkedAnySession = false;
             if (dev == null) return 0f;
 
+            object mgrObj = null;
+            IAudioSessionEnumerator sessionEnum = null;
             try
             {
-                object meterObj;
-                if (dev.Activate(ref meterGuid, CLSCTX_ALL, IntPtr.Zero, out meterObj) == 0 && meterObj != null)
-                {
-                    var meter = (IAudioMeterInformation)meterObj;
-                    float peak = 0f;
-                    if (meter.GetPeakValue(out peak) == 0 && peak > maxPeak)
-                        maxPeak = peak;
-                }
-            }
-            catch { }
-
-            if (maxPeak > 0.0005f)
-                return maxPeak;
-
-            try
-            {
-                object mgrObj;
                 if (dev.Activate(ref sessionMgrGuid, CLSCTX_ALL, IntPtr.Zero, out mgrObj) == 0 && mgrObj != null)
                 {
                     var mgr = (IAudioSessionManager2)mgrObj;
-                    IAudioSessionEnumerator sessionEnum;
                     if (mgr.GetSessionEnumerator(out sessionEnum) == 0 && sessionEnum != null)
                     {
                         int count = 0;
                         sessionEnum.GetCount(out count);
                         for (int i = 0; i < count; i++)
                         {
-                            IAudioSessionControl ctrl;
-                            if (sessionEnum.GetSession(i, out ctrl) == 0 && ctrl != null)
+                            IAudioSessionControl ctrl = null;
+                            try
                             {
-                                var sessionMeter = ctrl as IAudioMeterInformation;
-                                if (sessionMeter != null)
+                                if (sessionEnum.GetSession(i, out ctrl) == 0 && ctrl != null)
                                 {
-                                    float sPeak = 0f;
-                                    if (sessionMeter.GetPeakValue(out sPeak) == 0 && sPeak > maxPeak)
-                                        maxPeak = sPeak;
-                                }
+                                    checkedAnySession = true;
+                                    var ctrl2 = ctrl as IAudioSessionControl2;
+                                    if (ctrl2 != null)
+                                    {
+                                        uint pid = 0;
+                                        if (ctrl2.GetProcessId(out pid) == 0 && pid == _currentPid)
+                                        {
+                                            // Ignore our own AntiSkipKeepAlive stream
+                                            continue;
+                                        }
+                                    }
 
-                                int state = 0;
-                                // AudioSessionStateActive == 1
-                                if (ctrl.GetState(out state) == 0 && state == 1 && maxPeak < 0.01f)
-                                {
-                                    maxPeak = 0.01f;
+                                    // Measure actual signal peak (never assume state==1 means audio is playing)
+                                    var sessionMeter = ctrl as IAudioMeterInformation;
+                                    if (sessionMeter != null)
+                                    {
+                                        float sPeak = 0f;
+                                        if (sessionMeter.GetPeakValue(out sPeak) == 0 && sPeak > maxSessionPeak)
+                                            maxSessionPeak = sPeak;
+                                    }
                                 }
+                            }
+                            finally
+                            {
+                                SafeRelease(ctrl);
                             }
                         }
                     }
                 }
             }
             catch { }
+            finally
+            {
+                SafeRelease(sessionEnum);
+                SafeRelease(mgrObj);
+            }
 
-            return maxPeak;
+            if (maxSessionPeak > 0.0006f)
+                return maxSessionPeak;
+
+            if (!AntiSkipKeepAlive.IsPlaying || !checkedAnySession)
+            {
+                object meterObj = null;
+                try
+                {
+                    if (dev.Activate(ref meterGuid, CLSCTX_ALL, IntPtr.Zero, out meterObj) == 0 && meterObj != null)
+                    {
+                        var meter = (IAudioMeterInformation)meterObj;
+                        float peak = 0f;
+                        if (meter.GetPeakValue(out peak) == 0)
+                        {
+                            float floor = AntiSkipKeepAlive.IsPlaying ? 0.010f : 0.0006f;
+                            if (peak > floor && peak > maxSessionPeak)
+                                maxSessionPeak = peak;
+                        }
+                    }
+                }
+                catch { }
+                finally
+                {
+                    SafeRelease(meterObj);
+                }
+            }
+
+            return maxSessionPeak;
+        }
+
+        public static void GetActivityState(out bool isSoundPlaying, out bool isMicInUse, out float renderPeak, out float micPeak)
+        {
+            isSoundPlaying = false;
+            isMicInUse = false;
+            renderPeak = 0f;
+            micPeak = 0f;
+
+            IMMDeviceEnumerator enumerator = null;
+            try
+            {
+                enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
+                Guid meterGuid = typeof(IAudioMeterInformation).GUID;
+                Guid sessionMgrGuid = typeof(IAudioSessionManager2).GUID;
+
+                for (int role = 0; role <= 1; role++)
+                {
+                    IMMDevice device = null;
+                    try
+                    {
+                        if (enumerator.GetDefaultAudioEndpoint(0, role, out device) == 0 && device != null)
+                        {
+                            float p = CheckExternalRenderPeak(device, ref meterGuid, ref sessionMgrGuid);
+                            if (p > renderPeak) renderPeak = p;
+                        }
+                    }
+                    finally
+                    {
+                        SafeRelease(device);
+                    }
+                }
+
+                if (renderPeak <= 0.0006f)
+                {
+                    IMMDeviceCollection renderCol = null;
+                    try
+                    {
+                        if (enumerator.EnumAudioEndpoints(0, 1, out renderCol) == 0 && renderCol != null)
+                        {
+                            uint count = 0;
+                            renderCol.GetCount(out count);
+                            for (uint i = 0; i < count; i++)
+                            {
+                                IMMDevice dev = null;
+                                try
+                                {
+                                    if (renderCol.Item(i, out dev) == 0 && dev != null)
+                                    {
+                                        float p = CheckExternalRenderPeak(dev, ref meterGuid, ref sessionMgrGuid);
+                                        if (p > renderPeak) renderPeak = p;
+                                        if (renderPeak > 0.0006f) break;
+                                    }
+                                }
+                                finally
+                                {
+                                    SafeRelease(dev);
+                                }
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        SafeRelease(renderCol);
+                    }
+                }
+
+                isSoundPlaying = renderPeak > 0.0006f;
+            }
+            catch (Exception ex)
+            {
+                App.Log("GetActivityState error: " + ex.Message);
+            }
+            finally
+            {
+                SafeRelease(enumerator);
+            }
         }
 
         public static float GetMasterPeakAudio()
         {
-            float maxPeak = 0f;
-            try
-            {
-                var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
-                Guid meterGuid = typeof(IAudioMeterInformation).GUID;
-                Guid sessionMgrGuid = typeof(IAudioSessionManager2).GUID;
-
-                // 1. Check default console & multimedia endpoints
-                for (int role = 0; role <= 1; role++)
-                {
-                    IMMDevice device;
-                    if (enumerator.GetDefaultAudioEndpoint(0, role, out device) == 0 && device != null)
-                    {
-                        float p = CheckDeviceAudioActivity(device, ref meterGuid, ref sessionMgrGuid);
-                        if (p > maxPeak) maxPeak = p;
-                    }
-                }
-
-                if (maxPeak > 0.0005f)
-                    return maxPeak;
-
-                // 2. Check all active render endpoints
-                IMMDeviceCollection collection;
-                if (enumerator.EnumAudioEndpoints(0, 1, out collection) == 0 && collection != null)
-                {
-                    uint count = 0;
-                    collection.GetCount(out count);
-                    for (uint i = 0; i < count; i++)
-                    {
-                        IMMDevice dev;
-                        if (collection.Item(i, out dev) == 0 && dev != null)
-                        {
-                            float p = CheckDeviceAudioActivity(dev, ref meterGuid, ref sessionMgrGuid);
-                            if (p > maxPeak) maxPeak = p;
-                            if (maxPeak > 0.0005f)
-                                return maxPeak;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                App.Log("GetMasterPeakAudio error: " + ex.Message);
-            }
-            return maxPeak;
+            bool sound, mic;
+            float rPeak, mPeak;
+            GetActivityState(out sound, out mic, out rPeak, out mPeak);
+            return sound ? rPeak : 0f;
         }
 
         public static float GetMasterVolume()
         {
+            IMMDeviceEnumerator enumerator = null;
+            IMMDevice device = null;
+            object volObj = null;
             try
             {
-                var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
-                IMMDevice device;
+                enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
                 if (enumerator.GetDefaultAudioEndpoint(0, 0, out device) == 0 && device != null)
                 {
                     Guid volGuid = typeof(IAudioEndpointVolume).GUID;
-                    object volObj;
                     if (device.Activate(ref volGuid, CLSCTX_ALL, IntPtr.Zero, out volObj) == 0 && volObj != null)
                     {
                         var vol = (IAudioEndpointVolume)volObj;
@@ -259,19 +566,26 @@ namespace EksaCompanion
                 }
             }
             catch { }
+            finally
+            {
+                SafeRelease(volObj);
+                SafeRelease(device);
+                SafeRelease(enumerator);
+            }
             return 1.0f;
         }
 
         public static bool SetMasterVolume(float level)
         {
+            IMMDeviceEnumerator enumerator = null;
+            IMMDevice device = null;
+            object volObj = null;
             try
             {
-                var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
-                IMMDevice device;
+                enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
                 if (enumerator.GetDefaultAudioEndpoint(0, 0, out device) == 0 && device != null)
                 {
                     Guid volGuid = typeof(IAudioEndpointVolume).GUID;
-                    object volObj;
                     if (device.Activate(ref volGuid, CLSCTX_ALL, IntPtr.Zero, out volObj) == 0 && volObj != null)
                     {
                         var vol = (IAudioEndpointVolume)volObj;
@@ -282,6 +596,12 @@ namespace EksaCompanion
                 }
             }
             catch { }
+            finally
+            {
+                SafeRelease(volObj);
+                SafeRelease(device);
+                SafeRelease(enumerator);
+            }
             return false;
         }
     }

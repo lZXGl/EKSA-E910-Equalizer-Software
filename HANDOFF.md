@@ -10,16 +10,16 @@
   - Application: `C:\Program Files (x86)\EKSA 7.1 Surround Sound\ToneTuningTool.exe`
   - HID Library: `C:\Program Files (x86)\EKSA 7.1 Surround Sound\MyHidApi.dll` (32-bit x86 standard hidapi)
   - Presets: `C:\Program Files (x86)\EKSA 7.1 Surround Sound\DefaultFile\VID-3206&PID-0F06.json`
-- **Companion App Workspace**: `EksaCompanion\`
+- **Companion App Workspace**: `C:\Users\Lenovo\.gemini\antigravity\scratch\EksaCompanion\`
 - **Target Executable**: `bin\x86\Release\EksaTray.exe`
-- **Desktop Shortcut**: `%USERPROFILE%\Desktop\EKSA E910 Companion.lnk`
+- **Desktop Shortcut**: `C:\Users\Lenovo\Desktop\EKSA E910 Companion.lnk`
 
 ---
 
 ## 2. What Is Fully Completed & Working
 1. **Desktop Shortcut & Icon**:
    - Installed multi-resolution electric purple headset icon in `app.ico` and embedded into `EksaTray.exe`.
-   - Desktop shortcut `%USERPROFILE%\Desktop\EKSA E910 Companion.lnk` works.
+   - Desktop shortcut `C:\Users\Lenovo\Desktop\EKSA E910 Companion.lnk` works.
 2. **UI Design & Palette**:
    - Palette completely switched from cyan to Obsidian Electric Purple (`#A855F7`, `#C084FC`, `#25123E`).
 3. **Elimination of Fake Metrics**:
@@ -27,7 +27,7 @@
    - Genuine hardware indicator: `5.8GHz DONGLE ACTIVE` verified on `COL01` with physical UID (`24:AE:13:27`).
 4. **Idle Volume Reducer Removed**:
    - Removed the 10-minute 1% volume attenuator (digital silence already sends `0.0` samples over USB, and the dongle remains active when the headset is powered off).
-   - Added startup safeguard in `MainWindow.xaml.cs` to restore volume to 50% if previously stuck at `<= 2%`.
+   - Added startup safeguard in [`MainWindow.xaml.cs`](file:///C:/Users/Lenovo/.gemini/antigravity/scratch/EksaCompanion/MainWindow.xaml.cs) to restore volume to 50% if previously stuck at `<= 2%`.
 5. **SetupAPI COL01 Resolution**:
    - Stable Win32 SetupAPI enumeration correctly binds directly to `COL01` across x86/x64 marshaling (`cbDetail = 6` on x86).
 
@@ -39,10 +39,10 @@
 Through binary disassembly of `ToneTuningTool.exe` (`usbHidWriteDevice` at `0x0E3360`, `usbHidSend_SetPEQ` at `0x0E3EA2`, `usbHidSend_SetAlgorithmSwitch` at `0x0E447E`), three root causes were identified:
 
 #### Root Cause 1: PEQ Filter Bank Mismatch (`type: 0` vs `type: 1`)
-- In `VID-3206&PID-0F06.json`:
+- In [VID-3206&PID-0F06.json](file:///C:/Program%20Files%20(x86)/EKSA%207.1%20Surround%20Sound/DefaultFile/VID-3206&PID-0F06.json):
   - `Surround` mode uses `type = 0`
   - `Stereo` mode uses `type = 1`
-- In `EksaHardware.cs` (line 282), byte 6 (`pkt[6]`) is hardcoded to `0x01` (Stereo only).
+- In [EksaHardware.cs](file:///C:/Users/Lenovo/.gemini/antigravity/scratch/EksaCompanion/EksaHardware.cs#L282), byte 6 (`pkt[6]`) is hardcoded to `0x01` (Stereo only).
 - When the dongle is running in Surround mode (`type: 0`), writing to `type: 1` updates an inactive filter bank.
 
 #### Root Cause 2: Missing Algorithm Switch Trigger (`0x31`)
