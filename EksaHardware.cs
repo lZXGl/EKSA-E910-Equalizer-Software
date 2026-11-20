@@ -62,9 +62,9 @@ namespace EksaCompanion
         private readonly object _lock = new object();
         private Thread _pollThread;
         private volatile bool _isRunning = false;
-        private bool _wasConnected = false;
+        private bool _wasConnected = true; // Initial sync is performed explicitly by MainWindow after loading settings
         private bool _surroundEnabled = false;
-        private bool _micEncEnabled = false;
+        private bool _micEncEnabled = true;
         private sbyte[] _lastGains = null;
         private string _lastPresetName = "ZXG";
 
