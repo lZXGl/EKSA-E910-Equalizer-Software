@@ -71,6 +71,7 @@ namespace EksaCompanion
             catch { }
 
             _settings = AppSettings.Load();
+            _settings.SurroundEnabled = false; // Lock to pure Stereo (disable dongle's bad 7.1 reverb)
             App.Log("Settings loaded");
 
             _hardware = new EksaHardware();
@@ -238,27 +239,12 @@ namespace EksaCompanion
             }
             contextMenu.Items.Add(menuPresets);
 
-            // Audio Mode
-            ToolStripMenuItem itemSurround = new ToolStripMenuItem("7.1 Surround Sound", null, delegate(object s, EventArgs e) { ToggleSurround(); });
-            contextMenu.Items.Add(itemSurround);
-
             // Mic ENC
             ToolStripMenuItem itemMicEnc = new ToolStripMenuItem("Mic ENC (Noise Cancel)", null, delegate(object s, EventArgs e) { ToggleMicEnc(); });
             contextMenu.Items.Add(itemMicEnc);
 
             // Anti-Skip Low-Freq Gate
-            ToolStripMenuItem itemAntiSkip = new ToolStripMenuItem("Anti-Skip Low-Freq Gate", null, delegate(object s, EventArgs e)
-            {
-                _settings.AntiSkipEnabled = !_settings.AntiSkipEnabled;
-                _isUpdatingUi = true;
-                ChkAntiSkip.IsChecked = _settings.AntiSkipEnabled;
-                _isUpdatingUi = false;
-                if (!_settings.AntiSkipEnabled)
-                    AntiSkipKeepAlive.Stop();
-                else
-                    RefreshActivityAndKeepAlive(DateTime.UtcNow);
-                _settings.Save();
-            });
+            ToolStripMenuItem itemAntiSkip = new ToolStripMenuItem("Anti-Skip Low-Freq Gate", null, delegate(object s, EventArgs e) { ToggleAntiSkip(); });
             contextMenu.Items.Add(itemAntiSkip);
 
             // Re-Sync EQ Now (one-click slot cycle if headset just powered back on)
@@ -278,7 +264,6 @@ namespace EksaCompanion
 
             contextMenu.Opening += delegate(object s, System.ComponentModel.CancelEventArgs e)
             {
-                itemSurround.Checked = _settings != null && _settings.SurroundEnabled;
                 itemMicEnc.Checked = _settings != null && _settings.MicEncEnabled;
                 itemAntiSkip.Checked = _settings != null && _settings.AntiSkipEnabled;
                 foreach (ToolStripItem sub in menuPresets.DropDownItems)
@@ -442,10 +427,10 @@ namespace EksaCompanion
 
                 if (_notifyIcon != null)
                 {
-                    string tip = string.Format("EKSA E910: {0}%{1} | {2} | ENC {3}",
+                    string tip = string.Format("EKSA E910: {0}%{1} | Anti-Skip {2} | ENC {3}",
                         pct,
                         (_isAudioActive ? "" : " (Idle)"),
-                        (_settings.SurroundEnabled ? "7.1" : "Stereo"),
+                        (_settings.AntiSkipEnabled ? "On" : "Off"),
                         (_settings.MicEncEnabled ? "On" : "Off"));
                     if (tip.Length > 63) tip = tip.Substring(0, 63);
                     _notifyIcon.Text = tip;
@@ -489,10 +474,9 @@ namespace EksaCompanion
 
             ChkAutoStart.IsChecked = _settings.AutoStart;
             ChkStartMinimized.IsChecked = _settings.StartMinimized;
-            ChkAntiSkip.IsChecked = _settings.AntiSkipEnabled;
 
             UpdateMicEncUi(_settings.MicEncEnabled);
-            UpdateSurroundUi(_settings.SurroundEnabled);
+            UpdateAntiSkipUi(_settings.AntiSkipEnabled);
 
             for (int i = 0; i < 10; i++)
             {
@@ -564,21 +548,21 @@ namespace EksaCompanion
             }
         }
 
-        private void UpdateSurroundUi(bool surround)
+        private void UpdateAntiSkipUi(bool enabled)
         {
-            if (surround)
+            if (enabled)
             {
-                TxtSurroundState.Text = "7.1 SURROUND";
-                TxtSurroundState.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E9D5FF"));
-                BtnSurround.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#A855F7"));
-                BtnSurround.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#25123E"));
+                TxtAntiSkipState.Text = "ON";
+                TxtAntiSkipState.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#C084FC"));
+                BtnAntiSkip.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#A855F7"));
+                BtnAntiSkip.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#25123E"));
             }
             else
             {
-                TxtSurroundState.Text = "STEREO";
-                TxtSurroundState.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#C084FC"));
-                BtnSurround.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#A855F7"));
-                BtnSurround.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#25123E"));
+                TxtAntiSkipState.Text = "OFF";
+                TxtAntiSkipState.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#64748B"));
+                BtnAntiSkip.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#232B3C"));
+                BtnAntiSkip.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#171D28"));
             }
         }
 
@@ -592,30 +576,17 @@ namespace EksaCompanion
             App.Log(string.Format("ToggleMicEnc: enabled={0}", _settings.MicEncEnabled));
         }
 
-        private void ToggleSurround()
+        private void ToggleAntiSkip()
         {
-            _settings.SurroundEnabled = !_settings.SurroundEnabled;
-            UpdateSurroundUi(_settings.SurroundEnabled);
-
-            // If on a mode-sensitive preset (e.g. Deep Bass or EKSA Standard), update curve for the active mode
-            sbyte[] modeCurve = Presets.GetCurve(_settings.SelectedPreset, _settings.SurroundEnabled);
-            if (modeCurve != null)
-            {
-                _isUpdatingUi = true;
-                for (int i = 0; i < 10; i++)
-                {
-                    double prev = _sliders[i].Value;
-                    _settings.EqBands[i] = modeCurve[i];
-                    AnimateSliderValue(_sliders[i], prev, modeCurve[i]);
-                    UpdateGainLabel(i, modeCurve[i]);
-                }
-                _isUpdatingUi = false;
-            }
-
+            _settings.AntiSkipEnabled = !_settings.AntiSkipEnabled;
+            UpdateAntiSkipUi(_settings.AntiSkipEnabled);
+            if (!_settings.AntiSkipEnabled)
+                AntiSkipKeepAlive.Stop();
+            else
+                RefreshActivityAndKeepAlive(DateTime.UtcNow);
             UpdateBatteryUi();
-            _hardware.SetAudioMode(_settings.SurroundEnabled);
-            _hardware.SetEqualizer(_settings.EqBands, _settings.SelectedPreset);
             _settings.Save();
+            App.Log(string.Format("ToggleAntiSkip: enabled={0}", _settings.AntiSkipEnabled));
         }
 
         private void BtnMicEnc_Click(object sender, RoutedEventArgs e)
@@ -623,9 +594,9 @@ namespace EksaCompanion
             ToggleMicEnc();
         }
 
-        private void BtnSurround_Click(object sender, RoutedEventArgs e)
+        private void BtnAntiSkip_Click(object sender, RoutedEventArgs e)
         {
-            ToggleSurround();
+            ToggleAntiSkip();
         }
 
         private void Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -724,17 +695,6 @@ namespace EksaCompanion
         {
             if (_isUpdatingUi) return;
             _settings.StartMinimized = ChkStartMinimized.IsChecked == true;
-            _settings.Save();
-        }
-
-        private void ChkAntiSkip_Changed(object sender, RoutedEventArgs e)
-        {
-            if (_isUpdatingUi) return;
-            _settings.AntiSkipEnabled = ChkAntiSkip.IsChecked == true;
-            if (!_settings.AntiSkipEnabled)
-                AntiSkipKeepAlive.Stop();
-            else
-                RefreshActivityAndKeepAlive(DateTime.UtcNow);
             _settings.Save();
         }
 

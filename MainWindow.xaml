@@ -378,12 +378,12 @@
                             </StackPanel>
                         </Button>
 
-                        <!-- Surround Toggle Button -->
-                        <Button x:Name="BtnSurround" Style="{StaticResource LogiChipStyle}" Click="BtnSurround_Click"
-                                ToolTip="Toggle 7.1 Surround Sound / Stereo">
+                        <!-- Anti-Skip Toggle Button (Replaces useless 7.1 Surround button) -->
+                        <Button x:Name="BtnAntiSkip" Style="{StaticResource LogiChipStyle}" Click="BtnAntiSkip_Click"
+                                ToolTip="Toggle 14 Hz Anti-Skip Low-Frequency Gate (prevents Minecraft footsteps/bass from skipping; auto-sleeps after 15s of silence for 0% idle battery drain)">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="AUDIO: " FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" />
-                                <TextBlock x:Name="TxtSurroundState" Text="STEREO" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentCyan}" />
+                                <TextBlock Text="ANTI-SKIP: " FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" />
+                                <TextBlock x:Name="TxtAntiSkipState" Text="ON" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentCyan}" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -552,9 +552,6 @@
                 <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center" Margin="16,0,0,0">
                     <CheckBox x:Name="ChkAutoStart" Style="{StaticResource LogiCheckBox}" Content="Run on Windows startup" Margin="0,0,16,0" Checked="ChkAutoStart_Changed" Unchecked="ChkAutoStart_Changed" />
                     <CheckBox x:Name="ChkStartMinimized" Style="{StaticResource LogiCheckBox}" Content="Start minimized in tray" Margin="0,0,16,0" Checked="ChkStartMinimized_Changed" Unchecked="ChkStartMinimized_Changed" />
-                    <CheckBox x:Name="ChkAntiSkip" Style="{StaticResource LogiCheckBox}" Content="Anti-skip low-freq gate (auto-sleeps on idle)" Margin="0,0,16,0"
-                              ToolTip="Holds the 5.8GHz DAC gate open with an inaudible 16Hz pilot wave while audio plays so quiet/low-frequency sounds (like Minecraft grass footsteps) never skip, and turns off after 15s of silence for 0% idle battery drain."
-                              Checked="ChkAntiSkip_Changed" Unchecked="ChkAntiSkip_Changed" />
                 </StackPanel>
             </Grid>
         </Grid>
