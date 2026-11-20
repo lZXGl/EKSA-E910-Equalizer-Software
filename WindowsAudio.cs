@@ -75,10 +75,10 @@ namespace EksaCompanion
         private static short[] BuildPilotPcm()
         {
             // Pure 14 Hz sub-audible pilot wave (14 exact integer cycles in 48,000 samples = seamless loop)
-            // Holds the Hongkong Nano IC 5.8GHz DAC zero-detect gate open while audio is active (< 0.0003 mW speaker power)
+            // Amplitude 64 LSBs (~0.00195 scalar / -54 dBFS): holds the 5.8GHz DAC zero-detect gate open (< 0.00015 mW)
             short[] pcm = new short[SampleRate * Channels];
             const double subFreq = 14.0;
-            const double subAmp = 90.0; // ~0.0027 scalar (-51 dBFS)
+            const double subAmp = 64.0;
 
             for (int i = 0; i < SampleRate; i++)
             {
@@ -371,9 +371,13 @@ namespace EksaCompanion
 
         private static float CheckExternalRenderPeak(IMMDevice dev, ref Guid meterGuid, ref Guid sessionMgrGuid)
         {
-            float maxSessionPeak = 0f;
-            bool checkedAnySession = false;
             if (dev == null) return 0f;
+
+            // When Keep-Alive (64/32767 = 0.001953 scalar) is playing, loopback sessions (e.g. nvcontainer/Discord)
+            // echo the 0.001953 pilot peak. Using a 0.0030 threshold while Keep-Alive is active and 0.0006 while
+            // stopped guarantees instant wake on quiet audio AND guaranteed shutoff after 15s of silence.
+            float activeFloor = AntiSkipKeepAlive.IsPlaying ? 0.0030f : 0.0006f;
+            float maxSessionPeak = 0f;
 
             object mgrObj = null;
             IAudioSessionEnumerator sessionEnum = null;
@@ -393,7 +397,6 @@ namespace EksaCompanion
                             {
                                 if (sessionEnum.GetSession(i, out ctrl) == 0 && ctrl != null)
                                 {
-                                    checkedAnySession = true;
                                     var ctrl2 = ctrl as IAudioSessionControl2;
                                     if (ctrl2 != null)
                                     {
@@ -405,12 +408,11 @@ namespace EksaCompanion
                                         }
                                     }
 
-                                    // Measure actual signal peak (never assume state==1 means audio is playing)
                                     var sessionMeter = ctrl as IAudioMeterInformation;
                                     if (sessionMeter != null)
                                     {
                                         float sPeak = 0f;
-                                        if (sessionMeter.GetPeakValue(out sPeak) == 0 && sPeak > maxSessionPeak)
+                                        if (sessionMeter.GetPeakValue(out sPeak) == 0 && sPeak > activeFloor && sPeak > maxSessionPeak)
                                             maxSessionPeak = sPeak;
                                     }
                                 }
@@ -430,31 +432,26 @@ namespace EksaCompanion
                 SafeRelease(mgrObj);
             }
 
-            if (maxSessionPeak > 0.0006f)
+            if (maxSessionPeak > activeFloor)
                 return maxSessionPeak;
 
-            if (!AntiSkipKeepAlive.IsPlaying || !checkedAnySession)
+            object meterObj = null;
+            try
             {
-                object meterObj = null;
-                try
+                if (dev.Activate(ref meterGuid, CLSCTX_ALL, IntPtr.Zero, out meterObj) == 0 && meterObj != null)
                 {
-                    if (dev.Activate(ref meterGuid, CLSCTX_ALL, IntPtr.Zero, out meterObj) == 0 && meterObj != null)
+                    var meter = (IAudioMeterInformation)meterObj;
+                    float peak = 0f;
+                    if (meter.GetPeakValue(out peak) == 0 && peak > activeFloor && peak > maxSessionPeak)
                     {
-                        var meter = (IAudioMeterInformation)meterObj;
-                        float peak = 0f;
-                        if (meter.GetPeakValue(out peak) == 0)
-                        {
-                            float floor = AntiSkipKeepAlive.IsPlaying ? 0.010f : 0.0006f;
-                            if (peak > floor && peak > maxSessionPeak)
-                                maxSessionPeak = peak;
-                        }
+                        maxSessionPeak = peak;
                     }
                 }
-                catch { }
-                finally
-                {
-                    SafeRelease(meterObj);
-                }
+            }
+            catch { }
+            finally
+            {
+                SafeRelease(meterObj);
             }
 
             return maxSessionPeak;
