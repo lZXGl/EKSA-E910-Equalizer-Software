@@ -204,10 +204,10 @@
 
         <!-- Refined Preset Chip with Tactile Press Physics (scale 0.97) -->
         <Style x:Key="LogiChipStyle" TargetType="Button">
-            <Setter Property="Background" Value="#171D28" />
+            <Setter Property="Background" Value="#171422" />
             <Setter Property="Foreground" Value="#94A3B8" />
-            <Setter Property="BorderThickness" Value="1.5" />
-            <Setter Property="BorderBrush" Value="#2D3748" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#2E2444" />
             <Setter Property="Padding" Value="13,6" />
             <Setter Property="Margin" Value="3,0" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -345,7 +345,7 @@
                     <!-- Left: Verified Hardware Dongle Status -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <!-- Dongle Link Pill -->
-                        <Border x:Name="BadgeDongle" Height="30" Background="#25123E" BorderBrush="{StaticResource AccentPurple}" BorderThickness="1.5" CornerRadius="6" Padding="12,0" Margin="0,0,14,0" SnapsToDevicePixels="True" UseLayoutRounding="True">
+                        <Border x:Name="BadgeDongle" Height="30" Background="#221338" BorderBrush="#7C3AED" BorderThickness="1" CornerRadius="6" Padding="12,0" Margin="0,0,14,0" SnapsToDevicePixels="True" UseLayoutRounding="True">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <Ellipse x:Name="DotDongle" Width="6" Height="6" Fill="{StaticResource AccentPurpleHover}" Margin="0,0,7,0" VerticalAlignment="Center" />
                                 <TextBlock x:Name="TxtDongleStatus" Text="5.8GHz DONGLE ACTIVE" FontSize="10" FontWeight="Bold" Foreground="#E9D5FF" VerticalAlignment="Center" />
@@ -364,13 +364,12 @@
                         <Button x:Name="BtnBatteryReset" Height="30" Style="{StaticResource LogiChipStyle}" Click="BtnBatteryReset_Click" Margin="0,0,8,0" Padding="12,0"
                                 ToolTip="Estimated Headset Battery (Measured: 13h 35m to 20% / 17h 0m total). Click to reset to 100% when charged.">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <!-- Battery Body Icon -->
-                                <Grid VerticalAlignment="Center" Margin="0,0,6,0">
-                                    <Border x:Name="BdBatteryIcon" Width="20" Height="10" BorderBrush="#C084FC" BorderThickness="1.3" CornerRadius="2" Padding="1.5">
-                                        <Rectangle x:Name="RectBatteryFill" Width="15" Height="5" Fill="#C084FC" RadiusX="1" RadiusY="1" HorizontalAlignment="Left" />
-                                    </Border>
-                                    <Rectangle x:Name="RectBatteryTip" Width="2" Height="4" Fill="#C084FC" RadiusX="0.5" RadiusY="0.5" HorizontalAlignment="Right" Margin="0,0,-2.5,0" VerticalAlignment="Center" />
-                                </Grid>
+                                <!-- Mathematically Centered Canvas Battery Icon (UseLayoutRounding=False prevents DPI rounding asymmetry) -->
+                                <Canvas Width="23" Height="11" VerticalAlignment="Center" Margin="0,0,6,0" UseLayoutRounding="False" SnapsToDevicePixels="False">
+                                    <Rectangle x:Name="BdBatteryIcon" Canvas.Left="0.5" Canvas.Top="0.5" Width="19" Height="10" Stroke="#C084FC" StrokeThickness="1.25" RadiusX="2" RadiusY="2" Fill="Transparent" />
+                                    <Rectangle x:Name="RectBatteryFill" Canvas.Left="2.5" Canvas.Top="2.5" Width="15" Height="6" Fill="#C084FC" RadiusX="1" RadiusY="1" />
+                                    <Rectangle x:Name="RectBatteryTip" Canvas.Left="20.5" Canvas.Top="3.25" Width="2" Height="4.5" Fill="#C084FC" RadiusX="0.8" RadiusY="0.8" />
+                                </Canvas>
                                 <TextBlock x:Name="TxtBatteryPct" Text="100%" FontSize="10" FontWeight="Bold" Foreground="#E9D5FF" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
