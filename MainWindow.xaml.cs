@@ -377,21 +377,21 @@ namespace EksaCompanion
             {
                 accentHex = "#C084FC";
                 textHex = "#E9D5FF";
-                borderHex = "#3B215D";
-                bgHex = "#1A1228";
+                borderHex = "#A855F7";
+                bgHex = "#25123E";
             }
             else if (pct > 20)
             {
                 accentHex = "#FBBF24";
                 textHex = "#FDE68A";
-                borderHex = "#78350F";
+                borderHex = "#F59E0B";
                 bgHex = "#271A0C";
             }
             else
             {
                 accentHex = "#FB7185";
                 textHex = "#FECDD3";
-                borderHex = "#881337";
+                borderHex = "#F43F5E";
                 bgHex = "#2E1418";
             }
 
@@ -543,8 +543,8 @@ namespace EksaCompanion
             {
                 TxtMicEncState.Text = "OFF";
                 TxtMicEncState.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#64748B"));
-                BtnMicEnc.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#232B3C"));
-                BtnMicEnc.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#171D28"));
+                BtnMicEnc.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#33294A"));
+                BtnMicEnc.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#171422"));
             }
         }
 
@@ -561,8 +561,8 @@ namespace EksaCompanion
             {
                 TxtAntiSkipState.Text = "OFF";
                 TxtAntiSkipState.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#64748B"));
-                BtnAntiSkip.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#232B3C"));
-                BtnAntiSkip.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#171D28"));
+                BtnAntiSkip.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#33294A"));
+                BtnAntiSkip.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#171422"));
             }
         }
 
@@ -672,9 +672,9 @@ namespace EksaCompanion
                 }
                 else
                 {
-                    b.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#232B3C"));
+                    b.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#33294A"));
                     b.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#94A3B8"));
-                    b.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#171D28"));
+                    b.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#171422"));
                 }
             }
         }

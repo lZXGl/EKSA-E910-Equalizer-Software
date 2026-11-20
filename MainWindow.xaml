@@ -10,6 +10,8 @@
         WindowStyle="None"
         AllowsTransparency="False"
         ResizeMode="CanMinimize"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
         Icon="app.ico">
 
     <Window.Resources>
@@ -204,13 +206,15 @@
         <Style x:Key="LogiChipStyle" TargetType="Button">
             <Setter Property="Background" Value="#171D28" />
             <Setter Property="Foreground" Value="#94A3B8" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#232B3C" />
-            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="BorderBrush" Value="#2D3748" />
+            <Setter Property="Padding" Value="13,6" />
             <Setter Property="Margin" Value="3,0" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="UseLayoutRounding" Value="True" />
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -221,6 +225,8 @@
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="6"
                                 Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True"
+                                UseLayoutRounding="True"
                                 RenderTransformOrigin="0.5,0.5">
                             <Border.RenderTransform>
                                 <ScaleTransform x:Name="ChipScale" ScaleX="1" ScaleY="1" />
@@ -339,9 +345,9 @@
                     <!-- Left: Verified Hardware Dongle Status -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <!-- Dongle Link Pill -->
-                        <Border x:Name="BadgeDongle" Background="#231338" BorderBrush="{StaticResource AccentPurple}" BorderThickness="1" CornerRadius="4" Padding="10,4" Margin="0,0,14,0">
-                            <StackPanel Orientation="Horizontal">
-                                <Ellipse x:Name="DotDongle" Width="6" Height="6" Fill="{StaticResource AccentPurpleHover}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <Border x:Name="BadgeDongle" Height="30" Background="#25123E" BorderBrush="{StaticResource AccentPurple}" BorderThickness="1.5" CornerRadius="6" Padding="12,0" Margin="0,0,14,0" SnapsToDevicePixels="True" UseLayoutRounding="True">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse x:Name="DotDongle" Width="6" Height="6" Fill="{StaticResource AccentPurpleHover}" Margin="0,0,7,0" VerticalAlignment="Center" />
                                 <TextBlock x:Name="TxtDongleStatus" Text="5.8GHz DONGLE ACTIVE" FontSize="10" FontWeight="Bold" Foreground="#E9D5FF" VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
@@ -352,15 +358,15 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Right: Battery Indicator & Hardware Toggles (Mic ENC & Surround) -->
+                    <!-- Right: Battery Indicator & Hardware Toggles (Mic ENC & Anti-Skip) -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <!-- Calibrated Battery Pill (Modded 803040PT + LED delete, click to reset to 100%) -->
-                        <Button x:Name="BtnBatteryReset" Style="{StaticResource LogiChipStyle}" Click="BtnBatteryReset_Click" Margin="0,0,8,0" Padding="10,5"
+                        <Button x:Name="BtnBatteryReset" Height="30" Style="{StaticResource LogiChipStyle}" Click="BtnBatteryReset_Click" Margin="0,0,8,0" Padding="12,0"
                                 ToolTip="Estimated Headset Battery (Measured: 13h 35m to 20% / 17h 0m total). Click to reset to 100% when charged.">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <!-- Battery Body Icon -->
                                 <Grid VerticalAlignment="Center" Margin="0,0,6,0">
-                                    <Border x:Name="BdBatteryIcon" Width="20" Height="10" BorderBrush="#C084FC" BorderThickness="1.2" CornerRadius="2" Padding="1.5">
+                                    <Border x:Name="BdBatteryIcon" Width="20" Height="10" BorderBrush="#C084FC" BorderThickness="1.3" CornerRadius="2" Padding="1.5">
                                         <Rectangle x:Name="RectBatteryFill" Width="15" Height="5" Fill="#C084FC" RadiusX="1" RadiusY="1" HorizontalAlignment="Left" />
                                     </Border>
                                     <Rectangle x:Name="RectBatteryTip" Width="2" Height="4" Fill="#C084FC" RadiusX="0.5" RadiusY="0.5" HorizontalAlignment="Right" Margin="0,0,-2.5,0" VerticalAlignment="Center" />
@@ -370,18 +376,18 @@
                         </Button>
 
                         <!-- Mic ENC Toggle Button -->
-                        <Button x:Name="BtnMicEnc" Style="{StaticResource LogiChipStyle}" Click="BtnMicEnc_Click" Margin="0,0,8,0"
+                        <Button x:Name="BtnMicEnc" Height="30" Style="{StaticResource LogiChipStyle}" Click="BtnMicEnc_Click" Margin="0,0,8,0" Padding="12,0"
                                 ToolTip="Toggle Hardware Mic ENC (Noise Cancellation)">
-                            <StackPanel Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="MIC ENC: " FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" />
                                 <TextBlock x:Name="TxtMicEncState" Text="OFF" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextDim}" />
                             </StackPanel>
                         </Button>
 
                         <!-- Anti-Skip Toggle Button (Replaces useless 7.1 Surround button) -->
-                        <Button x:Name="BtnAntiSkip" Style="{StaticResource LogiChipStyle}" Click="BtnAntiSkip_Click"
+                        <Button x:Name="BtnAntiSkip" Height="30" Style="{StaticResource LogiChipStyle}" Click="BtnAntiSkip_Click" Margin="0" Padding="12,0"
                                 ToolTip="Toggle 14 Hz Anti-Skip Low-Frequency Gate (prevents Minecraft footsteps/bass from skipping; auto-sleeps after 15s of silence for 0% idle battery drain)">
-                            <StackPanel Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="ANTI-SKIP: " FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" />
                                 <TextBlock x:Name="TxtAntiSkipState" Text="ON" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentCyan}" />
                             </StackPanel>
